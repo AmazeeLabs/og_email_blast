@@ -1,0 +1,157 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Enable group admins to send e-mail blasts to group members.
+ */
+
+ /**
+ * Implements hook_help().
+ */
+function og_email_blast_help($path, $arg) {
+  if ($path == 'admin/help#og_email_blast') {
+    $output = '';
+    $output .= '<h3>' . t('About') . '</h3>';
+    $output .= '<p>' . t('This module allows group admins to send e-mail blasts to group members.') . '</p>';
+    return $output;
+  }
+}
+
+ /**
+ * Implements hook_menu().
+ */
+function og_email_blast_menu() {
+  $items = array();
+  $items['group/%/%/admin/email'] = array(
+    'title arguments' => array('E-mail group members of @group', 1, 2),
+    'title callback' => 'og_ui_menu_title_callback',
+    'description' => 'E-mail group members.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_email_blast_group', 1, 2),
+    'access callback' => 'og_user_access_by_entity',
+    'access arguments' => array('administer group', 1, 2),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_og_ui_get_group_admin().
+ */
+function og_email_blast_og_ui_get_group_admin($gid) {
+  $items = array();
+  $items['email_people'] = array(
+    'title' => t('E-mail people'),
+    'description' => t('E-mail group members.'),
+    'href' => "admin/email",
+  );
+  return $items;
+}
+
+/**
+ * E-mail group members form.
+ */
+function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
+  global $user;
+  og_set_breadcrumb($entity_type, $etid, array(l(t('Group'), "$entity_type/$etid/group")));
+  if ($group = og_get_group($entity_type, $etid)) {
+    // Grab the e-mail addresses.
+    $query = new EntityFieldQuery();
+    $query
+      ->entityCondition('entity_type', 'user')
+      ->fieldCondition(OG_AUDIENCE_FIELD, 'gid', $group->gid, '=');
+    if ($result = $query->execute()) {
+      $uids = array_keys($result['user']);
+      $accounts = user_load_multiple($uids);
+      $emails = array();
+      foreach ($accounts as $account) {
+        // We don't want the current user's e-mail
+        if ($account->uid != $user->uid) {
+          $emails[] = $account->mail;
+        }
+      }
+      $email_list = implode(', ', $emails);
+    }
+    $form['intro'] = array(
+      '#markup' => '<p>' . t('Use this form to send an e-mail message to group members.') . '</p>',
+    );
+    $form['group'] = array(
+      '#type' => 'value',
+      '#value' => $group->label,
+    );
+    $form['admin'] = array(
+      '#type' => 'value',
+      '#value' => $user->name,
+    );
+    $form['admin_email'] = array(
+      '#type' => 'value',
+      '#value' => $user->mail,
+    );
+    $form['to'] = array(
+      '#type' => 'value',
+      '#value' => $email_list,
+    );
+    $form['subject'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Subject'),
+      '#required' => TRUE,
+    );
+    $form['message'] = array(
+      '#type' => 'textarea',
+      '#rows' => 1,
+      '#title' => t('Message'),
+      '#required' => TRUE,
+    );
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Send e-mail')
+    );
+    return $form;
+  }
+  // Not a valid group node.
+  drupal_not_found();
+}
+
+/**
+ * Submit handler; E-mail group members.
+ */
+function og_email_blast_group_submit($form, &$form_state) {
+  og_email_blast_mail_send($form_state['values']);
+}
+
+/**
+ * Implements hook_mail_send().
+ */
+function og_email_blast_mail_send($form_values) {
+  $module = 'og_email_blast';
+  $key = 'group_message';
+  $to = $form_values['admin_email'];
+  $from = variable_get('site_mail', 'admin@example.com');
+  $params = $form_values;
+  $language = language_default();
+  $send = TRUE;
+  $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
+  if ($result['result'] == TRUE) {
+    drupal_set_message(t('Your message has been sent.'));
+  }
+  else {
+    drupal_set_message(t('There was a problem sending your message and it was not sent.'), 'error');
+  }
+}
+
+/**
+ * Implements hook_mail().
+ */
+function og_email_blast_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'group_message':
+      $message['headers']['Bcc'] = check_plain($params['to']);
+      $message['headers']['Reply-To'] = check_plain($params['admin_email']);
+      $message['subject'] = check_plain($params['subject']);
+      $message['body'][] = check_plain($params['message']);
+      watchdog('og_mail', check_plain($params['admin']) . ' sent an e-mail blast to ' . check_plain($params['group']));
+      break;
+  }
+}
+
+// TODO: redirect to group admin page
