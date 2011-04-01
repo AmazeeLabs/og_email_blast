@@ -1,6 +1,6 @@
 ;$Id$
 name = Organic groups e-mail blast
-description = Enable group admins to send e-mail blasts to group members.
+description = Enables group admins to send e-mail blasts to group members.
 core = 7.x
 package = Organic groups
 dependencies[] = og_ui

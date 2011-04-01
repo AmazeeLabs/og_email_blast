@@ -13,7 +13,7 @@ function og_email_blast_help($path, $arg) {
   if ($path == 'admin/help#og_email_blast') {
     $output = '';
     $output .= '<h3>' . t('About') . '</h3>';
-    $output .= '<p>' . t('This module enables group admins to send e-mail blasts to group members.') . '</p>';
+    $output .= '<p>' . t('The Organic Groups E-mail Blast module enables group admins to send e-mail blasts to group members.') . '</p>';
     $output .= '<h3>' . t('Features') . '</h3>';
     $output .= '<ul><li>' . t('Group members&rsquo; e-mail addresses are sent in the Bcc field.') . '</li>';
     $output .= '<li>' . t('The site&rsquo;s default e-mail address is used as the sender in order to minimize spam detection.') . '</li>';
@@ -84,6 +84,10 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
       '#type' => 'value',
       '#value' => $group->label,
     );
+    $form['group_url'] = array(
+      '#type' => 'value',
+      '#value' => $entity_type . '/' . $etid . '/group',
+    );
     $form['admin'] = array(
       '#type' => 'value',
       '#value' => $user->name,
@@ -121,6 +125,8 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
  */
 function og_email_blast_group_submit($form, &$form_state) {
   og_email_blast_mail_send($form_state['values']);
+  // Redirect to the group admin page
+  $form_state['redirect'] = $form_state['values']['group_url'];
 }
 
 /**
