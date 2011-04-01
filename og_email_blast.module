@@ -13,7 +13,12 @@ function og_email_blast_help($path, $arg) {
   if ($path == 'admin/help#og_email_blast') {
     $output = '';
     $output .= '<h3>' . t('About') . '</h3>';
-    $output .= '<p>' . t('This module allows group admins to send e-mail blasts to group members.') . '</p>';
+    $output .= '<p>' . t('This module enables group admins to send e-mail blasts to group members.') . '</p>';
+    $output .= '<h3>' . t('Features') . '</h3>';
+    $output .= '<ul><li>' . t('Group members&rsquo; e-mail addresses are sent in the Bcc field.') . '</li>';
+    $output .= '<li>' . t('The site&rsquo;s default e-mail address is used as the sender in order to minimize spam detection.') . '</li>';
+    $output .= '<li>' . t('The group admin&rsquo;s e-mail address is used for the Reply-To field.') . '</li>';
+    $output .= '<li>' . t('E-mail blasts are logged to the watchdog table.') . '</li></ul>';
     return $output;
   }
 }
@@ -98,7 +103,6 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     );
     $form['message'] = array(
       '#type' => 'textarea',
-      '#rows' => 1,
       '#title' => t('Message'),
       '#required' => TRUE,
     );
@@ -149,9 +153,7 @@ function og_email_blast_mail($key, &$message, $params) {
       $message['headers']['Reply-To'] = check_plain($params['admin_email']);
       $message['subject'] = check_plain($params['subject']);
       $message['body'][] = check_plain($params['message']);
-      watchdog('og_mail', check_plain($params['admin']) . ' sent an e-mail blast to ' . check_plain($params['group']));
+      watchdog('og_email_blast', check_plain($params['admin']) . ' sent an e-mail blast to ' . check_plain($params['group']));
       break;
   }
 }
-
-// TODO: redirect to group admin page
