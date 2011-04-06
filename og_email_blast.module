@@ -1,9 +1,7 @@
 <?php
-// $Id$
-
 /**
  * @file
- * Enable group admins to send e-mail blasts to group members.
+ *   Enable group admins to send e-mail blasts to group members.
  */
 
  /**
@@ -60,23 +58,6 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
   global $user;
   og_set_breadcrumb($entity_type, $etid, array(l(t('Group'), "$entity_type/$etid/group")));
   if ($group = og_get_group($entity_type, $etid)) {
-    // Grab the e-mail addresses.
-    $query = new EntityFieldQuery();
-    $query
-      ->entityCondition('entity_type', 'user')
-      ->fieldCondition(OG_AUDIENCE_FIELD, 'gid', $group->gid, '=');
-    if ($result = $query->execute()) {
-      $uids = array_keys($result['user']);
-      $accounts = user_load_multiple($uids);
-      $emails = array();
-      foreach ($accounts as $account) {
-        // We don't want the current user's e-mail
-        if ($account->uid != $user->uid) {
-          $emails[] = $account->mail;
-        }
-      }
-      $email_list = implode(', ', $emails);
-    }
     $form['intro'] = array(
       '#markup' => '<p>' . t('Use this form to send an e-mail message to group members.') . '</p>',
     );
@@ -98,7 +79,7 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     );
     $form['to'] = array(
       '#type' => 'value',
-      '#value' => $email_list,
+      '#value' => _group_emails($user, $group),
     );
     $form['subject'] = array(
       '#type' => 'textfield',
@@ -119,6 +100,40 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
   // Not a valid group node.
   drupal_not_found();
 }
+
+/**
+ * Utility function to get group members' e-mail addresses. This list does not
+ * include the group admin's e-mail address.
+ * 
+ * @param $user
+ *   The user object of the group admin requesting/using this info.
+ *
+ * @param $group
+ *   The group object.
+ *
+ * @return
+ *   A string of concatenated group members' e-mail addresses.
+ */
+function _group_emails($user, $group) {
+  $query = new EntityFieldQuery();
+  $query
+    ->entityCondition('entity_type', 'user')
+    ->fieldCondition(OG_AUDIENCE_FIELD, 'gid', $group->gid, '=');
+  if ($result = $query->execute()) {
+    $uids = array_keys($result['user']);
+    $accounts = user_load_multiple($uids);
+    $emails = array();
+    foreach ($accounts as $account) {
+      // We don't want the current user's e-mail
+      if ($account->uid != $user->uid) {
+        $emails[] = $account->mail;
+      }
+    }
+    return implode(', ', $emails);
+  }
+   // Query didn't work.
+   return NULL;
+ }
 
 /**
  * Submit handler; E-mail group members.

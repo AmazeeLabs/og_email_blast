@@ -1,4 +1,3 @@
-;$Id$
 name = Organic groups e-mail blast
 description = Enables group admins to send e-mail blasts to group members.
 core = 7.x
