@@ -16,7 +16,7 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     );
     $form['group'] = array(
       '#type' => 'value',
-      '#value' => $group->label,
+      '#value' => check_plain($group->label),
     );
     $form['group_url'] = array(
       '#type' => 'value',
@@ -24,11 +24,11 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     );
     $form['admin'] = array(
       '#type' => 'value',
-      '#value' => $user->name,
+      '#value' => check_plain($user->name),
     );
     $form['admin_email'] = array(
       '#type' => 'value',
-      '#value' => $user->mail,
+      '#value' => check_plain($user->mail),
     );
     $form['to'] = array(
       '#type' => 'value',
@@ -89,11 +89,11 @@ function og_email_blast_mail_send($form_values) {
 function og_email_blast_mail($key, &$message, $params) {
   switch ($key) {
     case 'group_message':
-      $message['headers']['Bcc'] = check_plain($params['to']);
-      $message['headers']['Reply-To'] = check_plain($params['admin_email']);
+      $message['headers']['Bcc'] = $params['to'];
+      $message['headers']['Reply-To'] = $params['admin_email'];
       $message['subject'] = check_plain($params['subject']);
       $message['body'][] = check_plain($params['message']);
-      watchdog('og_email_blast', check_plain($params['admin']) . ' sent an e-mail blast to ' . check_plain($params['group']));
+      watchdog('og_email_blast', $params['admin'] . ' sent an e-mail blast to ' . $params['group']);
       break;
   }
 }
@@ -126,7 +126,7 @@ function _group_emails($user, $group) {
         $emails[] = $account->mail;
       }
     }
-    return implode(', ', $emails);
+    return check_plain(implode(', ', $emails));
   }
   // Query did not execute.
   return NULL;
