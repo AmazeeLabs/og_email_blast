@@ -17,6 +17,8 @@ function og_email_blast_help($path, $arg) {
     $output .= '<li>' . t('The site&rsquo;s default e-mail address is used as the sender in order to minimize spam detection.') . '</li>';
     $output .= '<li>' . t('The group admin&rsquo;s e-mail address is used for the Reply-To field.') . '</li>';
     $output .= '<li>' . t('E-mail blasts are logged to the watchdog table.') . '</li></ul>';
+    $output .= '<h3>' . t('Configuration') . '</h3>';
+    $output .= '<p>' . t('There are no configuration settings necessary. This module adds a new option, &ldquo;E-mail people,&rdquo; to the &ldquo;Group&rdquo; tab on each group node. You can browse directly to the &ldquo;E-mail group members&rdquo; page at: /group/node/[group-nid]/admin/email') . '</p>';
     return $output;
   }
 }
