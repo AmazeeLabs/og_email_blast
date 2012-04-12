@@ -1,7 +1,7 @@
 <?php
 /**
  * @file
- *   Admin settings for Organic groups e-mail blast module.
+ * Admin settings for Organic groups e-mail blast module.
  */
 
 /**
@@ -10,13 +10,13 @@
 function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
   global $user;
   og_set_breadcrumb($entity_type, $etid, array(l(t('Group'), "$entity_type/$etid/group")));
-  if ($group = og_get_group($entity_type, $etid)) {
+  if (og_is_group($entity_type, $etid)) {
     $form['intro'] = array(
       '#markup' => '<p>' . t('Use this form to send an e-mail message to group members.') . '</p>',
     );
     $form['group'] = array(
       '#type' => 'value',
-      '#value' => check_plain($group->label),
+      '#value' => entity_label($entity_type, $etid),
     );
     $form['group_url'] = array(
       '#type' => 'value',
@@ -32,7 +32,7 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     );
     $form['to'] = array(
       '#type' => 'value',
-      '#value' => _group_emails($user, $group),
+      '#value' => _group_emails($user, $entity_type, $etid),
     );
     $form['subject'] = array(
       '#type' => 'textfield',
@@ -46,7 +46,7 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     );
     $form['submit'] = array(
       '#type' => 'submit',
-      '#value' => t('Send e-mail')
+      '#value' => t('Send e-mail'),
     );
     return $form;
   }
@@ -59,7 +59,7 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
  */
 function og_email_blast_group_submit($form, &$form_state) {
   og_email_blast_mail_send($form_state['values']);
-  // Redirect to the group admin page
+  // Redirect to the group admin page.
   $form_state['redirect'] = $form_state['values']['group_url'];
 }
 
@@ -98,26 +98,36 @@ function og_email_blast_mail($key, &$message, $params) {
   }
 }
 
- /**
+/**
  * Utility function to get group members' e-mail addresses. This list does not
  * include the group admin's e-mail address.
  *
  * @param $user
  *   The user object of the group admin requesting/using this info.
  *
- * @param $group
- *   The group object.
+ * @param $entity_type
+ *   The group object's entity type.
+ *
+ * @param $etid
+ *   The group object's entity id.
  *
  * @return
  *   A string of concatenated group members' e-mail addresses.
  */
-function _group_emails($user, $group) {
+function _group_emails($user, $entity_type, $etid) {
   $query = new EntityFieldQuery();
   $query
-    ->entityCondition('entity_type', 'user')
-    ->fieldCondition(OG_AUDIENCE_FIELD, 'gid', $group->gid, '=');
+    ->entityCondition('entity_type', 'og_membership')
+    ->propertyCondition('group_type', $entity_type, '=')
+    ->propertyCondition('gid', $etid, '=')
+    ->propertyCondition('entity_type', 'user', '=');
   if ($result = $query->execute()) {
-    $uids = array_keys($result['user']);
+    $mids = array_keys($result['og_membership']);
+    $memberships = og_membership_load_multiple($mids);
+    $uids = array();
+    foreach ($memberships as $membership) {
+      $uids[] = $membership->etid;
+    }
     $accounts = user_load_multiple($uids);
     $emails = array();
     foreach ($accounts as $account) {
