@@ -1,10 +1,10 @@
 <?php
 /**
  * @file
- *   Enable group admins to send e-mail blasts to group members.
+ * Enable group admins to send e-mail blasts to group members.
  */
 
- /**
+/**
  * Implements hook_help().
  */
 function og_email_blast_help($path, $arg) {
@@ -23,7 +23,20 @@ function og_email_blast_help($path, $arg) {
   }
 }
 
- /**
+/**
+ * Implements hook_og_permission().
+ */
+function og_email_blast_og_permission() {
+  $items = array();
+  $items['email people'] = array(
+    'title' => t('E-mail people'),
+    'description' => t('Users may E-mail group members.'),
+    'default role' => array(OG_ADMINISTRATOR_ROLE),
+  );
+  return $items;
+}
+
+/**
  * Implements hook_menu().
  */
 function og_email_blast_menu() {
@@ -44,12 +57,14 @@ function og_email_blast_menu() {
 /**
  * Implements hook_og_ui_get_group_admin().
  */
-function og_email_blast_og_ui_get_group_admin($gid) {
+function og_email_blast_og_ui_get_group_admin($group_type, $gid) {
   $items = array();
-  $items['email_people'] = array(
-    'title' => t('E-mail people'),
-    'description' => t('E-mail group members.'),
-    'href' => "admin/email",
-  );
+  if (og_user_access($group_type, $gid, 'email people')) {
+    $items['email_people'] = array(
+      'title' => t('E-mail people'),
+      'description' => t('E-mail group members.'),
+      'href' => "admin/email",
+    );
+  }
   return $items;
 }
