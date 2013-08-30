@@ -11,12 +11,14 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
   global $user;
   og_set_breadcrumb($entity_type, $etid, array(l(t('Group'), "$entity_type/$etid/group")));
   if (og_is_group($entity_type, $etid)) {
+    $entities = entity_load($entity_type, array($etid));
+    $entity = reset($entities);
     $form['intro'] = array(
       '#markup' => '<p>' . t('Use this form to send an e-mail message to group members.') . '</p>',
     );
     $form['group'] = array(
       '#type' => 'value',
-      '#value' => entity_label($entity_type, $etid),
+      '#value' => entity_label($entity_type, $entity),
     );
     $form['group_url'] = array(
       '#type' => 'value',
