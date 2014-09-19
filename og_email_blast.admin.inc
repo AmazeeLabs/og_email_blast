@@ -16,25 +16,33 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     $form['intro'] = array(
       '#markup' => '<p>' . t('Use this form to send an e-mail message to group members.') . '</p>',
     );
-    $form['group'] = array(
+    $form['entity_type'] = array(
       '#type' => 'value',
-      '#value' => entity_label($entity_type, $entity),
+      '#value' => $entity_type,
     );
-    $form['group_url'] = array(
+    $form['etid'] = array(
       '#type' => 'value',
-      '#value' => $entity_type . '/' . $etid . '/group',
+      '#value' => $etid,
     );
-    $form['admin'] = array(
-      '#type' => 'value',
-      '#value' => check_plain($user->name),
-    );
-    $form['admin_email'] = array(
-      '#type' => 'value',
-      '#value' => check_plain($user->mail),
-    );
-    $form['to'] = array(
-      '#type' => 'value',
-      '#value' => _group_emails($user, $entity_type, $etid),
+    list(,,$bundle_name) = entity_extract_ids($entity_type, $entity);
+    $roles = og_roles($entity_type, $bundle_name, $etid);
+    $role_options = array();
+    foreach ($roles as $rid => $role_name) {
+      if ($role_name == OG_ANONYMOUS_ROLE) {
+        continue;
+      }
+      if ($role_name == OG_AUTHENTICATED_ROLE) {
+        $role_options['all'] = t('All the members');
+      }
+      else {
+        $role_options[$rid] = t($role_name, array(), array('context' => 'og_blast_email_role_option'));
+      }
+    }
+    $form['roles'] = array(
+      '#type' => 'radios',
+      '#options' => $role_options,
+      '#default_value' => 'all',
+      '#title' => t('Recipients'),
     );
     $form['subject'] = array(
       '#type' => 'textfield',
@@ -62,26 +70,48 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
 function og_email_blast_group_submit($form, &$form_state) {
   og_email_blast_mail_send($form_state['values']);
   // Redirect to the group admin page.
-  $form_state['redirect'] = $form_state['values']['group_url'];
+  $form_state['redirect'] = $form_state['values']['entity_type'] . '/' . $form_state['values']['etid'] . '/group';
 }
 
 /**
  * Implements hook_mail_send().
  */
 function og_email_blast_mail_send($form_values) {
+  global $user;
   $module = 'og_email_blast';
   $key = 'group_message';
-  $to = $form_values['admin_email'];
   $from = variable_get('site_mail', 'admin@example.com');
+
   $params = $form_values;
+  $params['admin_email'] = $user->mail;
+  $params['admin'] = format_username($user);
+  $entities = entity_load($form_values['entity_type'], array($form_values['etid']));
+  $entity = reset($entities);
+  $params['group'] = entity_label($form_values['entity_type'], $entity);
+  $roles = array();
+  if (!empty($form_values['roles']) && $form_values['roles'] != 'all') {
+    $roles = array($form_values['roles']);
+  }
+
   $language = language_default();
-  $send = TRUE;
-  $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
-  if ($result['result'] == TRUE) {
-    drupal_set_message(t('Your message has been sent.'));
+  $emails = _group_emails($user, $form_values['entity_type'], $form_values['etid'], $roles);
+  if (!empty($emails)) {
+    $failed = array();
+    foreach ($emails as $to) {
+      $result = drupal_mail($module, $key, $to, $language, $params, $from);
+      if (!$result['result'] && $result['send']) {
+        $failed[] = $to;
+      }
+    }
+    if (empty($failed)) {
+      drupal_set_message(t('Your message has been sent.'));
+    }
+    else {
+      drupal_set_message(t('There was an error when trying to send the mail to these recipients: %failed', array('%failed' => implode(', ', $emails))), 'error');
+    }
   }
   else {
-    drupal_set_message(t('There was a problem sending your message and it was not sent.'), 'error');
+    drupal_set_message(t('There are not valid members to which a mail can be sent.'), 'warning');
   }
 }
 
@@ -91,11 +121,10 @@ function og_email_blast_mail_send($form_values) {
 function og_email_blast_mail($key, &$message, $params) {
   switch ($key) {
     case 'group_message':
-      $message['headers']['Bcc'] = $params['to'];
       $message['headers']['Reply-To'] = $params['admin_email'];
       $message['subject'] = check_plain($params['subject']);
       $message['body'][] = check_plain($params['message']);
-      watchdog('og_email_blast', $params['admin'] . ' sent an e-mail blast to ' . $params['group']);
+      watchdog('og_email_blast', '@admin sent an e-mail to @address in the group @group', array('@admin' => $params['admin'], '@address' => $message['to'], '@group' => $params['group']));
       break;
   }
 }
@@ -116,30 +145,16 @@ function og_email_blast_mail($key, &$message, $params) {
  * @return
  *   A string of concatenated group members' e-mail addresses.
  */
-function _group_emails($user, $entity_type, $etid) {
-  $query = new EntityFieldQuery();
-  $query
-    ->entityCondition('entity_type', 'og_membership')
-    ->propertyCondition('group_type', $entity_type, '=')
-    ->propertyCondition('gid', $etid, '=')
-    ->propertyCondition('entity_type', 'user', '=');
-  if ($result = $query->execute()) {
-    $mids = array_keys($result['og_membership']);
-    $memberships = og_membership_load_multiple($mids);
-    $uids = array();
-    foreach ($memberships as $membership) {
-      $uids[] = $membership->etid;
-    }
-    $accounts = user_load_multiple($uids);
-    $emails = array();
-    foreach ($accounts as $account) {
-      // We do not want the current user's e-mail
-      if ($account->uid != $user->uid) {
-        $emails[] = $account->mail;
-      }
-    }
-    return check_plain(implode(', ', $emails));
+function _group_emails($user, $entity_type, $etid, $roles = array()) {
+  global $user;
+  $query = db_select('og_membership', 'om')->fields('u', array('uid', 'mail'));
+  $query->condition('om.gid', $etid)->condition('om.group_type', $entity_type)->condition('om.entity_type', 'user')->condition('om.state', 1);
+  $query->innerJoin('users', 'u', 'u.uid = om.etid');
+  $query->condition('u.uid', $user->uid, '<>');
+  if (!empty($roles)) {
+    $query->innerJoin('og_users_roles', 'our', 'our.gid = om.gid AND our.group_type = om.group_type AND our.uid = om.etid');
+    $query->condition('our.rid', $roles);
   }
-  // Query did not execute.
-  return NULL;
+  $result = $query->execute()->fetchAllKeyed(0, 1);
+  return $result;
 }
