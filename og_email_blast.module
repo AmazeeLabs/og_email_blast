@@ -30,7 +30,12 @@ function og_email_blast_og_permission() {
   $items = array();
   $items['email people'] = array(
     'title' => t('E-mail people'),
-    'description' => t('Users may E-mail group members.'),
+    'description' => t('Users may E-mail all group members.'),
+    'default role' => array(OG_ADMINISTRATOR_ROLE),
+  );
+  $items['email administrators'] = array(
+    'title' => t('E-mail administrators'),
+    'description' => t('Users may E-mail group administrators.'),
     'default role' => array(OG_ADMINISTRATOR_ROLE),
   );
   return $items;

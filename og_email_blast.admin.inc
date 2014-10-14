@@ -27,22 +27,32 @@ function og_email_blast_group($form, &$form_state, $entity_type, $etid) {
     list(,,$bundle_name) = entity_extract_ids($entity_type, $entity);
     $roles = og_roles($entity_type, $bundle_name, $etid);
     $role_options = array();
+    $perm_send_to_all = og_user_access($entity_type, $etid, 'email people');
+    $perm_send_to_admins = og_user_access($entity_type, $etid, 'email administrators');
     foreach ($roles as $rid => $role_name) {
       if ($role_name == OG_ANONYMOUS_ROLE) {
         continue;
       }
-      if ($role_name == OG_AUTHENTICATED_ROLE) {
+      if ($role_name == OG_AUTHENTICATED_ROLE && $perm_send_to_all) {
         $role_options['all'] = t('All the members');
       }
-      else {
+      elseif ($perm_send_to_all || ($perm_send_to_admins && $role_name == OG_ADMINISTRATOR_ROLE)) {
         $role_options[$rid] = t($role_name, array(), array('context' => 'og_blast_email_role_option'));
       }
+    }
+    // If there is only one option automatically select it
+    // e.g. when we give anonymous the permission to send message only to admins
+    $default_recipients = null;
+    if (count($role_options) == 1) {
+      $role_id = array_keys($role_options);
+      $default_recipients = $role_id[0];
     }
     $form['roles'] = array(
       '#type' => 'radios',
       '#options' => $role_options,
       '#default_value' => 'all',
       '#title' => t('Recipients'),
+      '#default_value' => $default_recipients,
     );
     $form['subject'] = array(
       '#type' => 'textfield',
