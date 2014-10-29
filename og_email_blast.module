@@ -24,13 +24,38 @@ function og_email_blast_help($path, $arg) {
 }
 
 /**
+ * Implements hook_ctools_plugin_directory().
+ */
+function og_email_blast_ctools_plugin_directory($module, $plugin) {
+  if ($module == 'ctools' && !empty($plugin)) {
+    return 'plugins/' . $plugin;
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function og_email_blast_permission() {
+  return array(
+    'send mails in groups' => array(
+      'title' => t('Send e-mails in groups'),
+    ),
+  );
+}
+
+/**
  * Implements hook_og_permission().
  */
 function og_email_blast_og_permission() {
   $items = array();
   $items['email people'] = array(
     'title' => t('E-mail people'),
-    'description' => t('Users may E-mail group members.'),
+    'description' => t('Users may E-mail all group members.'),
+    'default role' => array(OG_ADMINISTRATOR_ROLE),
+  );
+  $items['email administrators'] = array(
+    'title' => t('E-mail administrators'),
+    'description' => t('Users may E-mail group administrators.'),
     'default role' => array(OG_ADMINISTRATOR_ROLE),
   );
   return $items;
@@ -47,11 +72,24 @@ function og_email_blast_menu() {
     'description' => 'E-mail group members.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('og_email_blast_group', 1, 2),
-    'access callback' => 'og_user_access_entity',
-    'access arguments' => array('email people', 1, 2),
+    'access callback' => 'og_email_blast_mail_access',
+    'access arguments' => array(1, 2),
     'file' => 'og_email_blast.admin.inc',
   );
   return $items;
+}
+
+/**
+ * Access callback for the masss email page.
+ */
+function og_email_blast_mail_access($group_type, $group_id, $account = NULL) {
+  // First, the user must have the global permission.
+  if (user_access('send mails in groups', $account)) {
+    if (og_user_access_entity('email people', $group_type, $group_id, $account) || og_user_access_entity('email administrators', $group_type, $group_id, $account)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 /**
