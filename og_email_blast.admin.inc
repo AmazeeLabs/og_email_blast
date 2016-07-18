@@ -100,7 +100,7 @@ function og_email_blast_mail_send($form_values) {
   $params['group'] = entity_label($form_values['entity_type'], $entity);
   $params['message'] = t('This message has been sent to you from the !group over te Intergeneration platform, because you are a member of the group.
 
-!message', array('!group' => $params['group'], '!message' => $params['message']));
+!message', array('!group' => l($params['group'], 'node/' . $entity->nid, array('absolute' => TRUE)), '!message' => $params['message']));
   $roles = array();
   if (!empty($form_values['roles']) && $form_values['roles'] != 'all') {
     $roles = array($form_values['roles']);
