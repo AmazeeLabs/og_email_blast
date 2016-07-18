@@ -137,8 +137,6 @@ function og_email_blast_mail($key, &$message, $params) {
       $message['headers']['Reply-To'] = $params['admin_email'];
       $message['subject'] = check_plain($params['subject']);
       $message['body'][] = $params['message'];
-      // This mail can contain html, for example links.
-      $message['headers']['Content-Type'] = 'text/html; charset=UTF-8';
       watchdog('og_email_blast', '@admin sent an e-mail to @address in the group @group', array('@admin' => $params['admin'], '@address' => $message['to'], '@group' => $params['group']));
       break;
   }
